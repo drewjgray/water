@@ -83,8 +83,9 @@ const init = async () => {
     loader.load('models/reef.glb', function (gltf) {
         model = gltf.scene;
         model.children[0].castShadow = true;
-        model.scale.set(0.05, 0.05, 0.05)
-        model.position.set(0, -2, 0)
+        model.scale.set(0.1, 0.1, 0.1)
+        model.position.set(0, -2.5, 0)
+        model.rotation.x = Math.PI * (10/180) // Rotate 15 degrees on X axis
         
         // Apply the caustics effect while preserving original textures
         model.traverse((child) => {
@@ -96,7 +97,7 @@ const init = async () => {
                 // Mix the original texture with the caustics effect
                 reefMaterial.colorNode = transition.mix(
                     originalColor,
-                    originalColor.add(waterLayer0.mul(0.2)) // Reduced from 0.5 to 0.3
+                    originalColor.add(waterLayer0.mul(0.2)) 
                 )
                 reefMaterial.roughness = 1 // child.material.roughness
                 reefMaterial.metalness = child.material.metalness
@@ -178,7 +179,7 @@ const init = async () => {
     waterMaterial.transparent = true
 
     const water = new THREE.Mesh(
-        new THREE.BoxGeometry(50, .001, 50),
+        new THREE.BoxGeometry(50, .01, 50),
         waterMaterial
     )
     water.position.set(0, 0, 0)
