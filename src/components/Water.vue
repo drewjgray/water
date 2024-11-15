@@ -40,8 +40,7 @@ const container = ref(null)
 // Three.js variables
 let camera, scene, renderer, objects, clock, floor
 let postProcessing, controls, stats, animationFrameId
-// Initialize floorPosition here, outside of init()
-let floorPosition = new THREE.Vector3(0, .2, 0)
+
 
 const init = async () => {
     if (!navigator.gpu) {
@@ -94,29 +93,29 @@ const init = async () => {
     const geometry = new THREE.IcosahedronGeometry(1, 3)
     const material = new THREE.MeshStandardNodeMaterial({ colorNode: iceColorNode })
 
-    const count = 100
-    const scale = 3.5
-    const column = 10
+    // const count = 100
+    // const scale = 3.5
+    // const column = 10
 
-    objects = new THREE.Group()
+    // objects = new THREE.Group()
 
-    for (let i = 0; i < count; i++) {
-        const x = i % column
-        const y = i / column
+    // for (let i = 0; i < count; i++) {
+    //     const x = i % column
+    //     const y = i / column
 
-        const mesh = new THREE.Mesh(geometry, material)
-        mesh.position.set(x * scale, 0, y * scale)
-        mesh.rotation.set(Math.random(), Math.random(), Math.random())
-        objects.add(mesh)
-    }
+    //     const mesh = new THREE.Mesh(geometry, material)
+    //     mesh.position.set(x * scale, 0, y * scale)
+    //     mesh.rotation.set(Math.random(), Math.random(), Math.random())
+    //     objects.add(mesh)
+    // }
 
-    objects.position.set(
-        ((column - 1) * scale) * -.5,
-        -1,
-        ((count / column) * scale) * -.5
-    )
+    // objects.position.set(
+    //     ((column - 1) * scale) * -.5,
+    //     -1,
+    //     ((count / column) * scale) * -.5
+    // )
 
-    scene.add(objects)
+    // scene.add(objects)
 
     // Water setup
     const timer = time.mul(.8)
@@ -218,20 +217,18 @@ const init = async () => {
     animate()
 }
 
-const animate = () => {
+const animate = async () => {
     animationFrameId = requestAnimationFrame(animate)
     controls.update()
 
     const delta = clock.getDelta()
-
-    floor.position.y = floorPosition.y - 5
 
     for (const object of objects?.children || []) {
         object.position.y = Math.sin(clock.elapsedTime + object.id) * 0.3
         object.rotation.y += delta * 0.3
     }
 
-    postProcessing.render()
+    await postProcessing.renderAsync()
 }
 
 const handleResize = () => {
@@ -242,8 +239,8 @@ const handleResize = () => {
     }
 }
 
-onMounted(() => {
-    init()
+onMounted(async () => {
+    await init()
     window.addEventListener('resize', handleResize)
 })
 
@@ -254,10 +251,10 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize)
     
     if (renderer) {
-        renderer.dispose()
+        renderer?.dispose?.()
     }
     if (postProcessing) {
-        postProcessing.dispose()
+        postProcessing.outputNode?.dispose?.()
     }
 })
 </script>

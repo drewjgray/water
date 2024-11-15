@@ -10,6 +10,8 @@ import Water from './components/Water.vue'
 body {
   margin: 0;
   padding: 0;
+  background-color: #000;
+  color: #fff;
 }
 
 #app {
@@ -17,6 +19,5 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: black;
 }
 </style>
