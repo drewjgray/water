@@ -1,8 +1,5 @@
 <template>
     <div ref="container" class="water-container">
-        <div id="info">
-            <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> WebGPU - Backdrop Water
-        </div>
     </div>
 </template>
 
@@ -28,18 +25,18 @@ import {
 } from 'three/tsl'
 import { gaussianBlur } from 'three/addons/tsl/display/GaussianBlurNode.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-// import { GUI } from 'three/addons/libs/lil-gui.module.min.js'
-// import Stats from 'three/addons/libs/stats.module.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// Import your assets
+
+// Import assets
 import waterTexture from '../assets/textures/water.jpg'
 
 // Refs
 const container = ref(null)
 
 // Three.js variables
-let camera, scene, renderer, objects, clock, floor
-let postProcessing, controls, stats, animationFrameId
+let camera, scene, renderer, objects, clock, floor, model
+let postProcessing, controls, animationFrameId
 
 
 const init = async () => {
@@ -49,13 +46,13 @@ const init = async () => {
     }
     // Camera setup
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.25, 30)
-    camera.position.set(3, 2, 4)
+    camera.position.set(3, -1, 4)
 
     // Scene setup
     scene = new THREE.Scene()
     scene.fog = new THREE.Fog(0x0487e2, 7, 25)
     scene.backgroundNode = normalWorld.y.mix(color(0x0487e2), color(0x0066ff))
-    camera.lookAt(0, 1, 0)
+    camera.lookAt(0, -1, 0)
 
     // Lights
     const sunLight = new THREE.DirectionalLight(0xFFE499, 5)
@@ -81,6 +78,41 @@ const init = async () => {
     // Initialize clock
     clock = new THREE.Clock()
 
+    // Load model
+    const loader = new GLTFLoader();
+    loader.load('models/reef.glb', function (gltf) {
+        model = gltf.scene;
+        model.children[0].castShadow = true;
+        model.scale.set(0.05, 0.05, 0.05)
+        model.position.set(0, -0.5, 0)
+        
+        // Apply the caustics effect while preserving original textures
+        model.traverse((child) => {
+            if (child.isMesh) {
+                // Create new material that preserves the original texture
+                const reefMaterial = new THREE.MeshStandardNodeMaterial()
+                
+                // Get the original texture from the model's material
+                const originalMap = child.material.map
+                const originalColor = originalMap ? texture(originalMap) : color(child.material.color)
+                
+                // Mix the original texture with the caustics effect
+                reefMaterial.colorNode = transition.mix(
+                    originalColor,
+                    originalColor.add(waterLayer0.mul(0.2)) // Reduced from 0.5 to 0.3
+                )
+                
+                // Copy other material properties
+                reefMaterial.roughness = child.material.roughness
+                reefMaterial.metalness = child.material.metalness
+                
+                child.material = reefMaterial
+            }
+        })
+        
+        scene.add(model);
+    });
+
     // Create objects
     const textureLoader = new THREE.TextureLoader()
     const iceDiffuse = textureLoader.load(waterTexture)
@@ -92,30 +124,6 @@ const init = async () => {
 
     const geometry = new THREE.IcosahedronGeometry(1, 3)
     const material = new THREE.MeshStandardNodeMaterial({ colorNode: iceColorNode })
-
-    // const count = 100
-    // const scale = 3.5
-    // const column = 10
-
-    // objects = new THREE.Group()
-
-    // for (let i = 0; i < count; i++) {
-    //     const x = i % column
-    //     const y = i / column
-
-    //     const mesh = new THREE.Mesh(geometry, material)
-    //     mesh.position.set(x * scale, 0, y * scale)
-    //     mesh.rotation.set(Math.random(), Math.random(), Math.random())
-    //     objects.add(mesh)
-    // }
-
-    // objects.position.set(
-    //     ((column - 1) * scale) * -.5,
-    //     -1,
-    //     ((count / column) * scale) * -.5
-    // )
-
-    // scene.add(objects)
 
     // Water setup
     const timer = time.mul(.8)
@@ -159,7 +167,7 @@ const init = async () => {
         new THREE.MeshStandardNodeMaterial({ colorNode: iceColorNode })
     )
     floor.position.set(0, -5, 0)
-    scene.add(floor)
+    // scene.add(floor)
 
     // Caustics
     const waterPosY = positionWorld.y.sub(water.position.y)
@@ -187,9 +195,10 @@ const init = async () => {
     controls.minDistance = 1
     controls.maxDistance = 10
     controls.maxPolarAngle = Math.PI * 0.9
-    controls.autoRotate = true
-    controls.autoRotateSpeed = 1
     controls.target.set(0, .2, 0)
+    controls.enablePan = true
+    controls.panSpeed = 1.0
+    controls.screenSpacePanning = true
     controls.update()
 
     // Post processing
@@ -201,7 +210,7 @@ const init = async () => {
 
     const scenePassColorBlurred = gaussianBlur(scenePassColor)
     scenePassColorBlurred.directionNode = waterMask.select(
-        scenePassDepth,
+        scenePassDepth.mul(0.2), // Add multiplier to reduce blur intensity underwater
         scenePass.getLinearDepthNode().mul(5)
     )
 
@@ -220,14 +229,7 @@ const init = async () => {
 const animate = async () => {
     animationFrameId = requestAnimationFrame(animate)
     controls.update()
-
     const delta = clock.getDelta()
-
-    for (const object of objects?.children || []) {
-        object.position.y = Math.sin(clock.elapsedTime + object.id) * 0.3
-        object.rotation.y += delta * 0.3
-    }
-
     await postProcessing.renderAsync()
 }
 
@@ -266,20 +268,4 @@ onBeforeUnmount(() => {
     position: relative;
 }
 
-#info {
-    position: absolute;
-    top: 10px;
-    width: 100%;
-    text-align: center;
-    color: white;
-    z-index: 100;
-    display: block;
-}
-
-#info a {
-    color: #f00;
-    font-weight: bold;
-    text-decoration: underline;
-    cursor: pointer;
-}
 </style>
