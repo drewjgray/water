@@ -35,7 +35,7 @@ import waterTexture from '../assets/textures/water.jpg'
 const container = ref(null)
 
 // Three.js variables
-let camera, scene, renderer, objects, clock, floor, model
+let camera, scene, renderer, clock, floor, model, sandModel
 let postProcessing, controls, animationFrameId
 
 
@@ -50,7 +50,7 @@ const init = async () => {
 
     // Scene setup
     scene = new THREE.Scene()
-    scene.fog = new THREE.Fog(0x0487e2, 7, 25)
+    scene.fog = new THREE.Fog(0x0487e2, 7, 10)
     scene.backgroundNode = normalWorld.y.mix(color(0x0487e2), color(0x0066ff))
     camera.lookAt(0, -1, 0)
 
@@ -84,15 +84,12 @@ const init = async () => {
         model = gltf.scene;
         model.children[0].castShadow = true;
         model.scale.set(0.05, 0.05, 0.05)
-        model.position.set(0, -0.5, 0)
+        model.position.set(0, -2, 0)
         
         // Apply the caustics effect while preserving original textures
         model.traverse((child) => {
             if (child.isMesh) {
-                // Create new material that preserves the original texture
                 const reefMaterial = new THREE.MeshStandardNodeMaterial()
-                
-                // Get the original texture from the model's material
                 const originalMap = child.material.map
                 const originalColor = originalMap ? texture(originalMap) : color(child.material.color)
                 
@@ -101,9 +98,7 @@ const init = async () => {
                     originalColor,
                     originalColor.add(waterLayer0.mul(0.2)) // Reduced from 0.5 to 0.3
                 )
-                
-                // Copy other material properties
-                reefMaterial.roughness = child.material.roughness
+                reefMaterial.roughness = 1 // child.material.roughness
                 reefMaterial.metalness = child.material.metalness
                 
                 child.material = reefMaterial
@@ -111,6 +106,34 @@ const init = async () => {
         })
         
         scene.add(model);
+    });
+
+    // Load sand model
+    loader.load('models/sand.glb', (gltf) => {
+        sandModel = gltf.scene;
+        sandModel.children[0].castShadow = true;
+        // sandModel.scale.set(0.05, 0.05, 0.05);
+        sandModel.position.set(0, -3, 0);
+
+        // Apply the same caustics effect to sand
+        sandModel.traverse((child) => {
+            if (child.isMesh) {
+                const modelMaterial = new THREE.MeshStandardNodeMaterial()
+                const originalMap = child.material.map
+                const originalColor = originalMap ? texture(originalMap) : color(child.material.color)
+
+                modelMaterial.colorNode = transition.mix(
+                    originalColor,
+                    originalColor.add(waterLayer0.mul(0.2))
+                )
+                modelMaterial.roughness = 1
+                modelMaterial.metalness = child.material.metalness
+
+                child.material = modelMaterial
+            }
+        })
+
+        scene.add(sandModel);
     });
 
     // Create objects
@@ -206,11 +229,11 @@ const init = async () => {
     const scenePassColor = scenePass.getTextureNode()
     const scenePassDepth = scenePass.getLinearDepthNode().remapClamp(.3, .5)
 
-    const waterMask = objectPosition(camera).y.greaterThan(screenUV.y.sub(.5).mul(camera.near))
+    const waterMask = objectPosition(camera).y.greaterThan(screenUV.y.sub(.01).mul(camera.near))
 
-    const scenePassColorBlurred = gaussianBlur(scenePassColor)
+    const scenePassColorBlurred = scenePassColor // gaussianBlur(scenePassColor)
     scenePassColorBlurred.directionNode = waterMask.select(
-        scenePassDepth.mul(0.2), // Add multiplier to reduce blur intensity underwater
+        scenePassDepth.mul(0.05).max(0).min(0.2),
         scenePass.getLinearDepthNode().mul(5)
     )
 
@@ -221,7 +244,6 @@ const init = async () => {
         scenePassColorBlurred,
         scenePassColorBlurred.mul(color(0x74ccf4)).mul(vignet)
     )
-
 
     animate()
 }
