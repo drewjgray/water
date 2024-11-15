@@ -242,7 +242,7 @@ const init = async () => {
     postProcessing = new THREE.PostProcessing(renderer)
     postProcessing.outputNode = waterMask.select(
         scenePassColorBlurred,
-        scenePassColorBlurred.mul(color(0x74ccf4)).mul(vignet)
+        scenePassColorBlurred.mul(color(0xb4d4f4)).mul(vignet) // 0x74ccf4
     )
 
     animate()
