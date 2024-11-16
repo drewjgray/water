@@ -35,7 +35,7 @@ import waterTexture from '../assets/textures/water.jpg'
 const container = ref(null)
 
 // Three.js variables
-let camera, scene, renderer, clock, floor, model, sandModel
+let camera, scene, renderer, clock, model, sandModel
 let postProcessing, controls, animationFrameId
 
 
@@ -94,12 +94,15 @@ const init = async () => {
                 const originalMap = child.material.map
                 const originalColor = originalMap ? texture(originalMap) : color(child.material.color)
                 
-                // Mix the original texture with the caustics effect
+                // Use normal to determine upward-facing surfaces
+                const upFactor = normalWorld.y.max(0) // Only positive Y components
+                
+                // Mix the original texture with the caustics effect, weighted by upFactor
                 reefMaterial.colorNode = transition.mix(
                     originalColor,
-                    originalColor.add(waterLayer0.mul(0.2)) 
+                    originalColor.add(waterLayer0.mul(0.2).mul(upFactor)) // Multiply caustics by upFactor
                 )
-                reefMaterial.roughness = 1 // child.material.roughness
+                reefMaterial.roughness = 1
                 reefMaterial.metalness = child.material.metalness
                 
                 child.material = reefMaterial
@@ -123,9 +126,11 @@ const init = async () => {
                 const originalMap = child.material.map
                 const originalColor = originalMap ? texture(originalMap) : color(child.material.color)
 
+                const upFactor = normalWorld.y.max(0)
+
                 modelMaterial.colorNode = transition.mix(
                     originalColor,
-                    originalColor.add(waterLayer0.mul(0.2))
+                    originalColor.add(waterLayer0.mul(0.2).mul(upFactor))
                 )
                 modelMaterial.roughness = 1
                 modelMaterial.metalness = child.material.metalness
@@ -143,11 +148,6 @@ const init = async () => {
     iceDiffuse.wrapS = THREE.RepeatWrapping
     iceDiffuse.wrapT = THREE.RepeatWrapping
     iceDiffuse.colorSpace = THREE.NoColorSpace
-
-    const iceColorNode = triplanarTexture(texture(iceDiffuse)).add(color(0x0066ff)).mul(.8)
-
-    const geometry = new THREE.IcosahedronGeometry(1, 3)
-    const material = new THREE.MeshStandardNodeMaterial({ colorNode: iceColorNode })
 
     // Water setup
     const timer = time.mul(.8)
@@ -185,14 +185,6 @@ const init = async () => {
     water.position.set(0, 0, 0)
     scene.add(water)
 
-    // Floor
-    floor = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.1, 1.1, 10),
-        new THREE.MeshStandardNodeMaterial({ colorNode: iceColorNode })
-    )
-    floor.position.set(0, -5, 0)
-    // scene.add(floor)
-
     // Caustics
     const waterPosY = positionWorld.y.sub(water.position.y)
     let transition = waterPosY.add(.1).saturate().oneMinus()
@@ -200,13 +192,6 @@ const init = async () => {
         transition,
         normalWorld.y.mix(transition, 0)
     ).toVar()
-
-    const colorNode = transition.mix(
-        material.colorNode,
-        material.colorNode.add(waterLayer0)
-    )
-
-    floor.material.colorNode = colorNode
 
     // Renderer setup
     renderer = new THREE.WebGPURenderer()
