@@ -50,7 +50,7 @@ const init = async () => {
 
     // Scene setup
     scene = new THREE.Scene()
-    scene.fog = new THREE.Fog(0x0487e2, 7, 10)
+    scene.fog = new THREE.Fog(0x0487e2, 5, 9)
     scene.backgroundNode = normalWorld.y.mix(color(0x0487e2), color(0x0066ff))
     camera.lookAt(0, -1, 0)
 
@@ -100,7 +100,7 @@ const init = async () => {
                 // Mix the original texture with the caustics effect, weighted by upFactor
                 reefMaterial.colorNode = transition.mix(
                     originalColor,
-                    originalColor.add(waterLayer0.mul(0.2).mul(upFactor)) // Multiply caustics by upFactor
+                    originalColor.add(waterLayer0.mul(0.5).mul(upFactor)) // Multiply caustics by upFactor
                 )
                 reefMaterial.roughness = 1
                 reefMaterial.metalness = child.material.metalness
